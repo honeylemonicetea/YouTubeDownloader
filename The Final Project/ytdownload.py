@@ -9,9 +9,21 @@
 
 
 from PyQt5 import QtCore, QtGui, QtWidgets
+import pytube as pt
+import requests
+import time
+
 
 
 class Ui_MainWindow(object):
+    def __init__(self):
+        self.video_url = ''
+        self.video_title = ''
+        self.video_size = ''
+        self.video_length = ''
+        self.video_image = ''
+        self.save_directory = 'Download/'
+
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(885, 778)
@@ -29,22 +41,23 @@ class Ui_MainWindow(object):
         self.video_title_lbl.setGeometry(QtCore.QRect(530, 80, 341, 131))
         font = QtGui.QFont()
         font.setFamily("ALSSchlangeslab-Bold")
-        font.setPointSize(20)
+        font.setPointSize(16)
         self.video_title_lbl.setFont(font)
         self.video_title_lbl.setScaledContents(True)
+        self.video_title_lbl.setWordWrap(True)
         self.video_title_lbl.setObjectName("video_title_lbl")
         self.video_length_lbl = QtWidgets.QLabel(self.centralwidget)
         self.video_length_lbl.setGeometry(QtCore.QRect(530, 230, 331, 51))
         font = QtGui.QFont()
         font.setFamily("ALSSchlangeslab-Bold")
-        font.setPointSize(20)
+        font.setPointSize(16)
         self.video_length_lbl.setFont(font)
         self.video_length_lbl.setObjectName("video_length_lbl")
         self.file_size_lbl = QtWidgets.QLabel(self.centralwidget)
         self.file_size_lbl.setGeometry(QtCore.QRect(530, 280, 311, 41))
         font = QtGui.QFont()
         font.setFamily("ALSSchlangeslab-Bold")
-        font.setPointSize(20)
+        font.setPointSize(16)
         self.file_size_lbl.setFont(font)
         self.file_size_lbl.setObjectName("file_size_lbl")
         self.quality_options_box = QtWidgets.QGroupBox(self.centralwidget)
@@ -54,7 +67,7 @@ class Ui_MainWindow(object):
         font.setPointSize(9)
         self.quality_options_box.setFont(font)
         self.quality_options_box.setObjectName("quality_options_box")
-        self.lq_radio_btn = QtWidgets.QRadioButton(self.quality_options_box)
+        self.lq_radio_btn = QtWidgets.QRadioButton(self.quality_options_box, toggled = lambda : self.update_size('360p'))
         self.lq_radio_btn.setGeometry(QtCore.QRect(10, 30, 95, 20))
         font = QtGui.QFont()
         font.setFamily("ALSSchlangeslab-Bold")
@@ -62,7 +75,7 @@ class Ui_MainWindow(object):
         self.lq_radio_btn.setFont(font)
         self.lq_radio_btn.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
         self.lq_radio_btn.setObjectName("lq_radio_btn")
-        self.hq_radio_btn = QtWidgets.QRadioButton(self.quality_options_box)
+        self.hq_radio_btn = QtWidgets.QRadioButton(self.quality_options_box, toggled = lambda : self.update_size('720p'))
         self.hq_radio_btn.setGeometry(QtCore.QRect(10, 90, 95, 20))
         font = QtGui.QFont()
         font.setFamily("ALSSchlangeslab-Bold")
@@ -70,7 +83,7 @@ class Ui_MainWindow(object):
         self.hq_radio_btn.setFont(font)
         self.hq_radio_btn.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
         self.hq_radio_btn.setObjectName("hq_radio_btn")
-        self.mq_radio_btn = QtWidgets.QRadioButton(self.quality_options_box)
+        self.mq_radio_btn = QtWidgets.QRadioButton(self.quality_options_box, toggled = lambda : self.update_size('480p'))
         self.mq_radio_btn.setGeometry(QtCore.QRect(10, 60, 95, 20))
         font = QtGui.QFont()
         font.setFamily("ALSSchlangeslab-Bold")
@@ -78,7 +91,7 @@ class Ui_MainWindow(object):
         self.mq_radio_btn.setFont(font)
         self.mq_radio_btn.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
         self.mq_radio_btn.setObjectName("mq_radio_btn")
-        self.audio_only_radio_btn = QtWidgets.QRadioButton(self.quality_options_box)
+        self.audio_only_radio_btn = QtWidgets.QRadioButton(self.quality_options_box, toggled = lambda : self.update_size('Audio Only'))
         self.audio_only_radio_btn.setGeometry(QtCore.QRect(10, 120, 111, 21))
         font = QtGui.QFont()
         font.setFamily("ALSSchlangeslab-Bold")
@@ -94,7 +107,7 @@ class Ui_MainWindow(object):
         self.dwnld_progress_bar.setGeometry(QtCore.QRect(20, 110, 491, 21))
         self.dwnld_progress_bar.setProperty("value", 24)
         self.dwnld_progress_bar.setObjectName("dwnld_progress_bar")
-        self.change_dir_btn = QtWidgets.QPushButton(self.contol_box)
+        self.change_dir_btn = QtWidgets.QPushButton(self.contol_box, clicked = lambda : self.change_dir())
         self.change_dir_btn.setGeometry(QtCore.QRect(20, 20, 241, 51))
         font = QtGui.QFont()
         font.setPointSize(10)
@@ -104,7 +117,7 @@ class Ui_MainWindow(object):
 "background-color: #B5FBDD;\n"
 "border: 1px solid #45D09E")
         self.change_dir_btn.setObjectName("change_dir_btn")
-        self.undo_load_btn = QtWidgets.QPushButton(self.contol_box)
+        self.undo_load_btn = QtWidgets.QPushButton(self.contol_box, clicked = lambda :self.reset_load())
         self.undo_load_btn.setGeometry(QtCore.QRect(290, 20, 211, 51))
         font = QtGui.QFont()
         font.setPointSize(10)
@@ -125,7 +138,7 @@ class Ui_MainWindow(object):
 "background-color: white;\n"
 "border: 1px solid #AFCFEA")
         self.url_input.setObjectName("url_input")
-        self.load_btn = QtWidgets.QPushButton(self.centralwidget)
+        self.load_btn = QtWidgets.QPushButton(self.centralwidget, clicked = lambda : self.load_video())
         self.load_btn.setGeometry(QtCore.QRect(660, 370, 131, 51))
         font = QtGui.QFont()
         font.setPointSize(10)
@@ -136,7 +149,7 @@ class Ui_MainWindow(object):
 "border: 1px solid #45D09E;\n"
 "")
         self.load_btn.setObjectName("load_btn")
-        self.download_btn = QtWidgets.QPushButton(self.centralwidget)
+        self.download_btn = QtWidgets.QPushButton(self.centralwidget, clicked = lambda : self.download_file())
         self.download_btn.setGeometry(QtCore.QRect(210, 640, 441, 61))
         font = QtGui.QFont()
         font.setFamily("ALSSchlangeslab-Bold")
@@ -176,15 +189,83 @@ class Ui_MainWindow(object):
         self.load_btn.setText(_translate("MainWindow", "LOAD"))
         self.download_btn.setText(_translate("MainWindow", "Download"))
 
+    def load_video(self):
+        video_url = self.url_input.text()
+        self.video_url = video_url
+
+    #     the video object
+        video = pt.YouTube(video_url)
+        title = video.title.replace('?',' ')
+        if len(title) > 50:
+            self.video_title = title[0:50] + '...'
+        else:
+            self.video_title = title
+    #     video size only updates after the resolution is chosen
+        resolution =''
+        raw_length = video.length
+        self.video_length = time.strftime('%M:%S', time.gmtime(raw_length))
+        thumbnail = requests.get(video.thumbnail_url)
+        with open(f'videothumbnails/{self.video_title}.jpg', 'wb') as image:
+            image.write(thumbnail.content)
+        self.video_image = f'videothumbnails/{self.video_title}.jpg'
+
+        self.update_labels()
+        self.get_quality()
+
+
+    def update_labels(self):
+        self.video_image_lbl.setPixmap(QtGui.QPixmap(self.video_image))
+        self.video_title_lbl.setText(f'Video Title:\n{self.video_title}')
+        self.video_length_lbl.setText(f'Video Length: {self.video_length}')
+
 
     def download_file(self):
-        pass
+        video_url = self.url_input.text()
+        print(video_url)
+
+    def get_quality(self):
+        if self.lq_radio_btn.isChecked():
+            print('360p')
+        elif self.mq_radio_btn.isChecked():
+            print('480p')
+        elif self.hq_radio_btn.isChecked():
+            print('720p')
+        elif self.audio_only_radio_btn.isChecked():
+            print('audio only')
+        else:
+            print('Nothing checked')
+
+    def update_size(self, resolution):
+
+        #     the video object
+        video = pt.YouTube(self.video_url)
+        if resolution != '480p' and resolution != 'Audio Only':
+            stream = video.streams.get_by_resolution(resolution)
+        elif resolution == '480p':
+            stream = video.streams.filter(res='480p').first()
+        else:
+            stream = video.streams.get_audio_only()
+        # print(video.streams)
+        size_bytes = stream.filesize
+        size_megabytes = size_bytes / (1024**2)
+        print(size_bytes)
+        self.video_size = round(size_megabytes, 2) #the size is in bytes, need to convert
+        self.file_size_lbl.setText(f'File Size: {self.video_size} MB')
 
     def change_dir(self):
-        pass
+        file_dialog = QtWidgets.QFileDialog()
+        new_dir = file_dialog.getExistingDirectory()
+        self.save_directory = new_dir
 
     def reset_load(self):
-        pass
+        self.video_length = '00:00'
+        self.video_size = '0'
+        self.video_title = ''
+        self.video_image = 'img/yt_placeholder.jpg'
+        self.video_url = ''
+        self.url_input.clear()
+        self.file_size_lbl.setText('File Size: 0 MB')
+        self.update_labels()
 
     def progress(self):
         pass
