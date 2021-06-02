@@ -23,6 +23,7 @@ class Ui_MainWindow(object):
         self.video_length = ''
         self.video_image = ''
         self.save_directory = 'Download/'
+        self.resolution = ''
 
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
@@ -200,8 +201,7 @@ class Ui_MainWindow(object):
             self.video_title = title[0:50] + '...'
         else:
             self.video_title = title
-    #     video size only updates after the resolution is chosen
-        resolution =''
+
         raw_length = video.length
         self.video_length = time.strftime('%M:%S', time.gmtime(raw_length))
         thumbnail = requests.get(video.thumbnail_url)
@@ -210,7 +210,7 @@ class Ui_MainWindow(object):
         self.video_image = f'videothumbnails/{self.video_title}.jpg'
 
         self.update_labels()
-        self.get_quality()
+        # self.get_quality()
 
 
     def update_labels(self):
@@ -222,22 +222,39 @@ class Ui_MainWindow(object):
     def download_file(self):
         video_url = self.url_input.text()
         print(video_url)
+        video = pt.YouTube(video_url)
+        print(self.resolution)
 
-    def get_quality(self):
-        if self.lq_radio_btn.isChecked():
-            print('360p')
-        elif self.mq_radio_btn.isChecked():
-            print('480p')
-        elif self.hq_radio_btn.isChecked():
-            print('720p')
-        elif self.audio_only_radio_btn.isChecked():
-            print('audio only')
-        else:
-            print('Nothing checked')
+        if len(self.resolution) > 0:
+            if self.resolution == '480p':
+                stream = video.streams.filter(res='480p').first()
+            elif self.resolution == 'Audio Only':
+                stream = video.streams.get_audio_only()
+            else:
+                stream = video.streams.get_by_resolution(self.resolution)
+            stream.download(self.save_directory, f'{self.video_title} {self.resolution}')
+
+    # def get_quality(self):
+    #     if self.lq_radio_btn.isChecked():
+    #         print('360p')
+    #         self.resolution = '360p'
+    #     elif self.mq_radio_btn.isChecked():
+    #         print('480p')
+    #         self.resolution = '480p'
+    #     elif self.hq_radio_btn.isChecked():
+    #         print('720p')
+    #         self.resolution = '720p'
+    #     elif self.audio_only_radio_btn.isChecked():
+    #         print('audio only')
+    #         self.resolution = 'Audio Only'
+    #     else:
+    #         print('Nothing checked')
+    #         self.resolution = ''
 
     def update_size(self, resolution):
 
         #     the video object
+        self.resolution = resolution
         video = pt.YouTube(self.video_url)
         if resolution != '480p' and resolution != 'Audio Only':
             stream = video.streams.get_by_resolution(resolution)
