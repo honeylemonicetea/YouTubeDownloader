@@ -106,7 +106,7 @@ class Ui_MainWindow(object):
         self.contol_box.setObjectName("contol_box")
         self.dwnld_progress_bar = QtWidgets.QProgressBar(self.contol_box)
         self.dwnld_progress_bar.setGeometry(QtCore.QRect(20, 110, 491, 21))
-        self.dwnld_progress_bar.setProperty("value", 24)
+        self.dwnld_progress_bar.setProperty("value", 0)
         self.dwnld_progress_bar.setObjectName("dwnld_progress_bar")
         self.change_dir_btn = QtWidgets.QPushButton(self.contol_box, clicked = lambda : self.change_dir())
         self.change_dir_btn.setGeometry(QtCore.QRect(20, 20, 241, 51))
@@ -191,27 +191,29 @@ class Ui_MainWindow(object):
         self.download_btn.setText(_translate("MainWindow", "Download"))
 
     def load_video(self):
-        video_url = self.url_input.text()
-        self.video_url = video_url
+        try:
+            video_url = self.url_input.text()
+            self.video_url = video_url
 
-    #     the video object
-        video = pt.YouTube(video_url)
-        title = video.title.replace('?',' ')
-        if len(title) > 50:
-            self.video_title = title[0:50] + '...'
-        else:
-            self.video_title = title
+        #     the video object
+            video = pt.YouTube(video_url)
+            title = video.title.replace('?',' ')
+            if len(title) > 50:
+                self.video_title = title[0:50] + '...'
+            else:
+                self.video_title = title
 
-        raw_length = video.length
-        self.video_length = time.strftime('%M:%S', time.gmtime(raw_length))
-        thumbnail = requests.get(video.thumbnail_url)
-        with open(f'videothumbnails/{self.video_title}.jpg', 'wb') as image:
-            image.write(thumbnail.content)
-        self.video_image = f'videothumbnails/{self.video_title}.jpg'
+            raw_length = video.length
+            self.video_length = time.strftime('%M:%S', time.gmtime(raw_length))
+            thumbnail = requests.get(video.thumbnail_url)
+            with open(f'videothumbnails/{self.video_title}.jpg', 'wb') as image:
+                image.write(thumbnail.content)
+            self.video_image = f'videothumbnails/{self.video_title}.jpg'
 
-        self.update_labels()
-        # self.get_quality()
-
+            self.update_labels()
+            # self.get_quality()
+        except Exception:
+            pass
 
     def update_labels(self):
         self.video_image_lbl.setPixmap(QtGui.QPixmap(self.video_image))
@@ -222,52 +224,63 @@ class Ui_MainWindow(object):
     def download_file(self):
         video_url = self.url_input.text()
         print(video_url)
-        video = pt.YouTube(video_url)
+        video = pt.YouTube(video_url, on_progress_callback = self.progress, on_complete_callback=self.download_complete)
         print(self.resolution)
 
         if len(self.resolution) > 0:
             if self.resolution == '480p':
-                stream = video.streams.filter(res='480p').first()
+                stream_video = video.streams.filter(res='480p').first()
+                stream_audio = video.streams.get_audio_only()
+                stream_video.download(self.save_directory, 'vid')
+                stream_audio.download(self.save_directory, 'aud')
+                self.merge(f'{self.save_directory}/vid.mp4', f'{self.save_directory}/aud.mp4', f'{self.save_directory}/{self.video_title} {self.resolution}.mp4')
+
             elif self.resolution == 'Audio Only':
                 stream = video.streams.get_audio_only()
+                stream.download(self.save_directory, f'{self.video_title} {self.resolution}')
             else:
                 stream = video.streams.get_by_resolution(self.resolution)
-            stream.download(self.save_directory, f'{self.video_title} {self.resolution}')
+                stream.download(self.save_directory, f'{self.video_title} {self.resolution}')
+        # self.download_complete()
 
-    # def get_quality(self):
-    #     if self.lq_radio_btn.isChecked():
-    #         print('360p')
-    #         self.resolution = '360p'
-    #     elif self.mq_radio_btn.isChecked():
-    #         print('480p')
-    #         self.resolution = '480p'
-    #     elif self.hq_radio_btn.isChecked():
-    #         print('720p')
-    #         self.resolution = '720p'
-    #     elif self.audio_only_radio_btn.isChecked():
-    #         print('audio only')
-    #         self.resolution = 'Audio Only'
-    #     else:
-    #         print('Nothing checked')
-    #         self.resolution = ''
+    def merge(self,vidname, audname, outname, fps=25):
+        import moviepy.editor as mpe
+        my_clip = mpe.VideoFileClip(vidname)
+        audio_background = mpe.AudioFileClip(audname)
+        final_clip = my_clip.set_audio(audio_background)
+        final_clip.write_videofile(outname, fps=fps)
+
+    def download_complete(self, strea, filepath):
+        dwnld_complete = QtWidgets.QMessageBox()
+        dwnld_complete.setWindowTitle('Download Complete')
+        dwnld_complete.setText(f'The file {self.video_title} has been downloaded and saved in: {self.save_directory}')
+        dwnld_complete.setIcon(QtWidgets.QMessageBox.Information)
+
+        x = dwnld_complete.exec_()
 
     def update_size(self, resolution):
 
         #     the video object
-        self.resolution = resolution
-        video = pt.YouTube(self.video_url)
-        if resolution != '480p' and resolution != 'Audio Only':
-            stream = video.streams.get_by_resolution(resolution)
-        elif resolution == '480p':
-            stream = video.streams.filter(res='480p').first()
-        else:
-            stream = video.streams.get_audio_only()
-        # print(video.streams)
-        size_bytes = stream.filesize
-        size_megabytes = size_bytes / (1024**2)
-        print(size_bytes)
-        self.video_size = round(size_megabytes, 2) #the size is in bytes, need to convert
-        self.file_size_lbl.setText(f'File Size: {self.video_size} MB')
+        try:
+            self.resolution = resolution
+            video = pt.YouTube(self.video_url)
+            if resolution != '480p' and resolution != 'Audio Only':
+                stream = video.streams.get_by_resolution(resolution)
+                size_bytes = stream.filesize
+            elif resolution == '480p':
+                stream = video.streams.filter(res='480p').first()
+                audio_stream = video.streams.get_audio_only()
+                size_bytes = stream.filesize + audio_stream.filesize
+                print(f'streamsize {stream.filesize}\n audio size {audio_stream.filesize} \n {size_bytes}')
+            else:
+                stream = video.streams.get_audio_only()
+                size_bytes = stream.filesize
+            size_megabytes = size_bytes / (1024**2)
+            print(size_bytes)
+            self.video_size = round(size_megabytes, 2) #the size is in bytes, need to convert
+            self.file_size_lbl.setText(f'File Size: {self.video_size} MB')
+        except Exception:
+            pass
 
     def change_dir(self):
         file_dialog = QtWidgets.QFileDialog()
@@ -284,8 +297,12 @@ class Ui_MainWindow(object):
         self.file_size_lbl.setText('File Size: 0 MB')
         self.update_labels()
 
-    def progress(self):
-        pass
+    def progress(self, stream, data_chunk, bytes_remaining):
+
+        percent = ((stream.filesize - bytes_remaining) / stream.filesize) * 100
+        print(round(percent))
+        self.dwnld_progress_bar.setValue(round(percent))
+
 
 if __name__ == "__main__":
     import sys
