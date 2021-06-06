@@ -24,6 +24,7 @@ class Ui_MainWindow(object):
         self.video_image = ''
         self.save_directory = 'Download/'
         self.resolution = ''
+        self.downloaded = 0
 
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
@@ -222,26 +223,25 @@ class Ui_MainWindow(object):
 
 
     def download_file(self):
-        video_url = self.url_input.text()
-        print(video_url)
-        video = pt.YouTube(video_url, on_progress_callback = self.progress, on_complete_callback=self.download_complete)
-        print(self.resolution)
+        try:
+            video_url = self.url_input.text()
+            video = pt.YouTube(video_url, on_progress_callback = self.progress, on_complete_callback=self.download_complete)
 
-        if len(self.resolution) > 0:
-            if self.resolution == '480p':
-                stream_video = video.streams.filter(res='480p').first()
-                stream_audio = video.streams.get_audio_only()
-                stream_video.download(self.save_directory, 'vid')
-                stream_audio.download(self.save_directory, 'aud')
-                self.merge(f'{self.save_directory}/vid.mp4', f'{self.save_directory}/aud.mp4', f'{self.save_directory}/{self.video_title} {self.resolution}.mp4')
-
-            elif self.resolution == 'Audio Only':
-                stream = video.streams.get_audio_only()
-                stream.download(self.save_directory, f'{self.video_title} {self.resolution}')
-            else:
-                stream = video.streams.get_by_resolution(self.resolution)
-                stream.download(self.save_directory, f'{self.video_title} {self.resolution}')
-        # self.download_complete()
+            if len(self.resolution) > 0:
+                if self.resolution == '480p':
+                    stream_video = video.streams.filter(res='480p').first()
+                    stream_audio = video.streams.get_audio_only()
+                    stream_video.download(self.save_directory, 'vid')
+                    stream_audio.download(self.save_directory, 'aud')
+                    self.merge(f'{self.save_directory}/vid.mp4', f'{self.save_directory}/aud.mp4', f'{self.save_directory}/{self.video_title} {self.resolution}.mp4')
+                elif self.resolution == 'Audio Only':
+                    stream = video.streams.get_audio_only()
+                    stream.download(self.save_directory, f'{self.video_title} {self.resolution}')
+                else:
+                    stream = video.streams.get_by_resolution(self.resolution)
+                    stream.download(self.save_directory, f'{self.video_title} {self.resolution}')
+        except Exception:
+            pass
 
     def merge(self,vidname, audname, outname, fps=25):
         import moviepy.editor as mpe
@@ -271,12 +271,12 @@ class Ui_MainWindow(object):
                 stream = video.streams.filter(res='480p').first()
                 audio_stream = video.streams.get_audio_only()
                 size_bytes = stream.filesize + audio_stream.filesize
-                print(f'streamsize {stream.filesize}\n audio size {audio_stream.filesize} \n {size_bytes}')
+
             else:
                 stream = video.streams.get_audio_only()
                 size_bytes = stream.filesize
             size_megabytes = size_bytes / (1024**2)
-            print(size_bytes)
+
             self.video_size = round(size_megabytes, 2) #the size is in bytes, need to convert
             self.file_size_lbl.setText(f'File Size: {self.video_size} MB')
         except Exception:
@@ -300,7 +300,8 @@ class Ui_MainWindow(object):
     def progress(self, stream, data_chunk, bytes_remaining):
 
         percent = ((stream.filesize - bytes_remaining) / stream.filesize) * 100
-        print(round(percent))
+        # self.downloaded += data_chunk
+
         self.dwnld_progress_bar.setValue(round(percent))
 
 
