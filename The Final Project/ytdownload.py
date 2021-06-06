@@ -31,6 +31,7 @@ class Ui_MainWindow(object):
         MainWindow.resize(885, 778)
         MainWindow.setStyleSheet("background: aliceblue")
         self.centralwidget = QtWidgets.QWidget(MainWindow)
+        
         self.centralwidget.setObjectName("centralwidget")
         self.video_image_lbl = QtWidgets.QLabel(self.centralwidget)
         self.video_image_lbl.setGeometry(QtCore.QRect(110, 70, 401, 261))
