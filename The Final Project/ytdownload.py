@@ -11,9 +11,8 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 import pytube as pt
 import requests
+import os
 import time
-
-
 
 class Ui_MainWindow(object):
     def __init__(self):
@@ -86,6 +85,7 @@ class Ui_MainWindow(object):
         self.hq_radio_btn.setFont(font)
         self.hq_radio_btn.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
         self.hq_radio_btn.setObjectName("hq_radio_btn")
+
         self.mq_radio_btn = QtWidgets.QRadioButton(self.quality_options_box, toggled = lambda : self.update_size('480p'))
         self.mq_radio_btn.setGeometry(QtCore.QRect(10, 60, 95, 20))
         font = QtGui.QFont()
@@ -102,6 +102,17 @@ class Ui_MainWindow(object):
         self.audio_only_radio_btn.setFont(font)
         self.audio_only_radio_btn.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
         self.audio_only_radio_btn.setObjectName("audio_only_radio_btn")
+
+        # radio btn group
+        self.radio_btn_group = QtWidgets.QButtonGroup()
+        self.radio_btn_group.addButton(self.lq_radio_btn)
+        self.radio_btn_group.addButton(self.mq_radio_btn)
+        self.radio_btn_group.addButton(self.hq_radio_btn)
+        self.radio_btn_group.addButton(self.audio_only_radio_btn)
+        self.radio_btn_group.setExclusive(True)
+
+
+
         self.contol_box = QtWidgets.QGroupBox(self.centralwidget)
         self.contol_box.setGeometry(QtCore.QRect(270, 450, 521, 151))
         self.contol_box.setTitle("")
@@ -180,7 +191,7 @@ class Ui_MainWindow(object):
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
         self.video_title_lbl.setText(_translate("MainWindow", "Video Title: Unknown"))
         self.video_length_lbl.setText(_translate("MainWindow", "Video Length: 00:00"))
-        self.file_size_lbl.setText(_translate("MainWindow", "File Size: 0 bytes"))
+        self.file_size_lbl.setText(_translate("MainWindow", ""))
         self.quality_options_box.setTitle(_translate("MainWindow", "Quality Options"))
         self.lq_radio_btn.setText(_translate("MainWindow", "360p"))
         self.hq_radio_btn.setText(_translate("MainWindow", "720p"))
@@ -226,21 +237,34 @@ class Ui_MainWindow(object):
     def download_file(self):
         try:
             video_url = self.url_input.text()
-            video = pt.YouTube(video_url, on_progress_callback = self.progress, on_complete_callback=self.download_complete)
 
             if len(self.resolution) > 0:
+
                 if self.resolution == '480p':
-                    stream_video = video.streams.filter(res='480p').first()
-                    stream_audio = video.streams.get_audio_only()
-                    stream_video.download(self.save_directory, 'vid')
-                    stream_audio.download(self.save_directory, 'aud')
-                    self.merge(f'{self.save_directory}/vid.mp4', f'{self.save_directory}/aud.mp4', f'{self.save_directory}/{self.video_title} {self.resolution}.mp4')
-                elif self.resolution == 'Audio Only':
-                    stream = video.streams.get_audio_only()
-                    stream.download(self.save_directory, f'{self.video_title} {self.resolution}')
+                    video = pt.YouTube(video_url, on_progress_callback=self.progress)
+                    stream_video = video.streams.filter(res='480p')[0]
+                    stream_video.download(self.save_directory, 'vid.mp4')
+                    self.dwnld_progress_bar.setValue(0)
+                    audio = pt.YouTube(video_url, on_progress_callback=self.progress)
+                    stream_audio = audio.streams.get_audio_only()
+                    stream_audio.download(self.save_directory, 'aud.mp3')
+
+                    self.conv_warning()
+                    self.dwnld_progress_bar.setValue(0)
+
+                    self.merge(f'{self.save_directory}/vid.mp4', f'{self.save_directory}/aud.mp3', f'{self.save_directory}/{self.video_title} {self.resolution}.mp4')
+                    os.remove(f'{self.save_directory}/vid.mp4')
+                    os.remove(f'{self.save_directory}/aud.mp3')
+                    self.download_complete()
                 else:
-                    stream = video.streams.get_by_resolution(self.resolution)
-                    stream.download(self.save_directory, f'{self.video_title} {self.resolution}')
+                    video = pt.YouTube(video_url, on_progress_callback=self.progress,
+                                       on_complete_callback=self.download_complete)
+                    if self.resolution == 'Audio Only':
+                        stream = video.streams.get_audio_only()
+                        stream.download(self.save_directory, f'{self.video_title} {self.resolution}.mp3')
+                    else:
+                        stream = video.streams.get_by_resolution(self.resolution)
+                        stream.download(self.save_directory, f'{self.video_title} {self.resolution}.mp4')
         except Exception:
             pass
 
@@ -251,10 +275,18 @@ class Ui_MainWindow(object):
         final_clip = my_clip.set_audio(audio_background)
         final_clip.write_videofile(outname, fps=fps)
 
-    def download_complete(self, strea, filepath):
+    def download_complete(self):
         dwnld_complete = QtWidgets.QMessageBox()
         dwnld_complete.setWindowTitle('Download Complete')
         dwnld_complete.setText(f'The file {self.video_title} has been downloaded and saved in: {self.save_directory}')
+        dwnld_complete.setIcon(QtWidgets.QMessageBox.Information)
+
+        x = dwnld_complete.exec_()
+
+    def conv_warning(self):
+        dwnld_complete = QtWidgets.QMessageBox()
+        dwnld_complete.setWindowTitle('Download Complete')
+        dwnld_complete.setText('Your file has been downloaded and needs to be converted. It may take some time')
         dwnld_complete.setIcon(QtWidgets.QMessageBox.Information)
 
         x = dwnld_complete.exec_()
@@ -269,9 +301,8 @@ class Ui_MainWindow(object):
                 stream = video.streams.get_by_resolution(resolution)
                 size_bytes = stream.filesize
             elif resolution == '480p':
-                stream = video.streams.filter(res='480p').first()
-                audio_stream = video.streams.get_audio_only()
-                size_bytes = stream.filesize + audio_stream.filesize
+                stream = video.streams.filter(res='480p')[0]
+                size_bytes = stream.filesize
 
             else:
                 stream = video.streams.get_audio_only()
@@ -295,8 +326,18 @@ class Ui_MainWindow(object):
         self.video_image = 'img/yt_placeholder.jpg'
         self.video_url = ''
         self.url_input.clear()
-        self.file_size_lbl.setText('File Size: 0 MB')
+        self.file_size_lbl.setText('')
         self.update_labels()
+
+        #  set the radio btn group unexclusive
+        self.radio_btn_group.setExclusive(False)
+        self.lq_radio_btn.setChecked(False)
+        self.mq_radio_btn.setChecked(False)
+        self.hq_radio_btn.setChecked(False)
+        self.audio_only_radio_btn.setChecked(False)
+        self.radio_btn_group.setExclusive(True)
+
+        self.dwnld_progress_bar.setValue(0)
 
     def progress(self, stream, data_chunk, bytes_remaining):
 
