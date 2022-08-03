@@ -21,7 +21,7 @@ class Ui_MainWindow(object):
         self.video_size = ''
         self.video_length = ''
         self.video_image = ''
-        self.save_directory = 'Download/'
+        self.save_directory = ''
         self.resolution = ''
         self.downloaded = 0
 
@@ -36,7 +36,7 @@ class Ui_MainWindow(object):
         self.video_image_lbl.setGeometry(QtCore.QRect(110, 70, 401, 261))
         self.video_image_lbl.setStyleSheet("border-radius: 8px")
         self.video_image_lbl.setText("")
-        self.video_image_lbl.setPixmap(QtGui.QPixmap("img/yt_placeholder.jpg"))
+        self.video_image_lbl.setPixmap(QtGui.QPixmap("yt_placeholder.jpg"))
         self.video_image_lbl.setScaledContents(True)
         self.video_image_lbl.setObjectName("video_image_lbl")
         self.video_title_lbl = QtWidgets.QLabel(self.centralwidget)
@@ -219,12 +219,12 @@ class Ui_MainWindow(object):
             raw_length = video.length
             self.video_length = time.strftime('%M:%S', time.gmtime(raw_length))
             thumbnail = requests.get(video.thumbnail_url)
-            with open(f'videothumbnails/{self.video_title}.jpg', 'wb') as image:
+            with open(f'{self.video_title}.jpg', 'wb+') as image:
                 image.write(thumbnail.content)
-            self.video_image = f'videothumbnails/{self.video_title}.jpg'
+            self.video_image = f'{self.video_title}.jpg'
 
             self.update_labels()
-            # self.get_quality()
+
         except Exception:
             pass
 
@@ -237,7 +237,7 @@ class Ui_MainWindow(object):
     def download_file(self):
         try:
             video_url = self.url_input.text()
-
+            os.remove(self.video_image)
             if len(self.resolution) > 0:
 
                 if self.resolution == '480p':
@@ -255,6 +255,7 @@ class Ui_MainWindow(object):
                     self.merge(f'{self.save_directory}/vid.mp4', f'{self.save_directory}/aud.mp3', f'{self.save_directory}/{self.video_title} {self.resolution}.mp4')
                     os.remove(f'{self.save_directory}/vid.mp4')
                     os.remove(f'{self.save_directory}/aud.mp3')
+
                     self.download_complete()
                 else:
                     video = pt.YouTube(video_url, on_progress_callback=self.progress,
@@ -276,6 +277,7 @@ class Ui_MainWindow(object):
         final_clip.write_videofile(outname, fps=fps)
 
     def download_complete(self):
+
         dwnld_complete = QtWidgets.QMessageBox()
         dwnld_complete.setWindowTitle('Download Complete')
         dwnld_complete.setText(f'The file {self.video_title} has been downloaded and saved in: {self.save_directory}')
@@ -323,7 +325,7 @@ class Ui_MainWindow(object):
         self.video_length = '00:00'
         self.video_size = '0'
         self.video_title = ''
-        self.video_image = 'img/yt_placeholder.jpg'
+        self.video_image = 'yt_placeholder.jpg'
         self.video_url = ''
         self.url_input.clear()
         self.file_size_lbl.setText('')
