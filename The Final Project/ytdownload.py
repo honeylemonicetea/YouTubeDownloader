@@ -3,7 +3,7 @@ import pytube as pt
 import requests
 import os
 import time
-# import moviepy.editor as mpe
+import moviepy.editor as mpe
 class Ui_MainWindow(object):
     def __init__(self):
         self.video_url = ''
@@ -16,7 +16,7 @@ class Ui_MainWindow(object):
         self.downloaded = 0
 
     def setupUi(self, MainWindow):
-        MainWindow.setObjectName("MainWindow")
+        MainWindow.setObjectName("YouTube Downloader")
         MainWindow.resize(885, 778)
         MainWindow.setStyleSheet("background: aliceblue")
         self.centralwidget = QtWidgets.QWidget(MainWindow)
@@ -194,10 +194,10 @@ class Ui_MainWindow(object):
         self.download_btn.setText(_translate("MainWindow", "Download"))
 
     def load_video(self):
+        print('hey')
         try:
             video_url = self.url_input.text()
             self.video_url = video_url
-
         #     the video object
             video = pt.YouTube(video_url)
             title = video.title.replace('?',' ')
@@ -205,18 +205,17 @@ class Ui_MainWindow(object):
                 self.video_title = title[0:50] + '...'
             else:
                 self.video_title = title
-
             raw_length = video.length
             self.video_length = time.strftime('%M:%S', time.gmtime(raw_length))
             thumbnail = requests.get(video.thumbnail_url)
             with open(f'{self.video_title}.jpg', 'wb+') as image:
                 image.write(thumbnail.content)
             self.video_image = f'{self.video_title}.jpg'
-
+            print('the video has been loaded')
             self.update_labels()
 
-        except Exception:
-            pass
+        except Exception as e:
+            print(e)
 
     def update_labels(self):
         self.video_image_lbl.setPixmap(QtGui.QPixmap(self.video_image))
@@ -329,7 +328,7 @@ class Ui_MainWindow(object):
         #  set the radio btn group unexclusive
         self.radio_btn_group.setExclusive(False)
         self.lq_radio_btn.setChecked(False)
-        self.mq_radio_btn.setChecked(False)
+        # self.mq_radio_btn.setChecked(False)
         self.hq_radio_btn.setChecked(False)
         self.audio_only_radio_btn.setChecked(False)
         self.radio_btn_group.setExclusive(True)
